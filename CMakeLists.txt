@@ -1,0 +1,61 @@
+cmake_minimum_required(VERSION 3.20)
+project(parallel_file_compression LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+option(PFC_ENABLE_CUDA "Build the CUDA backend when a CUDA toolkit is found" ON)
+
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+  set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
+endif()
+
+find_package(OpenMP COMPONENTS CXX)
+if(NOT OpenMP_CXX_FOUND)
+  message(STATUS "OpenMP not found: the CPU backend will run on one thread")
+endif()
+
+add_library(pfc STATIC
+  src/crc32.cpp
+  src/format.cpp
+  src/codec.cpp
+  src/archive.cpp)
+target_include_directories(pfc PUBLIC include)
+if(OpenMP_CXX_FOUND)
+  target_link_libraries(pfc PUBLIC OpenMP::OpenMP_CXX)
+endif()
+if(MSVC)
+  target_compile_options(pfc PRIVATE /W4 /permissive-)
+  target_link_libraries(pfc PUBLIC psapi)
+else()
+  target_compile_options(pfc PRIVATE -Wall -Wextra)
+endif()
+
+set(PFC_CUDA_BUILT OFF)
+if(PFC_ENABLE_CUDA)
+  include(CheckLanguage)
+  check_language(CUDA)
+  if(CMAKE_CUDA_COMPILER)
+    if(NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
+      set(CMAKE_CUDA_ARCHITECTURES "75;86;89")
+    endif()
+    enable_language(CUDA)
+    find_package(CUDAToolkit REQUIRED)
+    set(CMAKE_CUDA_STANDARD 17)
+    add_library(pfc_gpu STATIC src/cuda/kernels.cu src/cuda/gpu_engine.cu)
+    target_include_directories(pfc_gpu PUBLIC include)
+    target_link_libraries(pfc_gpu PUBLIC CUDA::cudart)
+    target_link_libraries(pfc PUBLIC pfc_gpu)
+    set(PFC_CUDA_BUILT ON)
+    message(STATUS "CUDA backend enabled (${CMAKE_CUDA_COMPILER}, architectures ${CMAKE_CUDA_ARCHITECTURES})")
+  else()
+    message(STATUS "No CUDA toolkit found: building the CPU backend only")
+  endif()
+endif()
+if(NOT PFC_CUDA_BUILT)
+  target_sources(pfc PRIVATE src/gpu_unavailable.cpp)
+endif()
+
+add_executable(compressor src/main.cpp)
+target_link_libraries(compressor PRIVATE pfc)
