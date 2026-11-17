@@ -1,6 +1,6 @@
 # Parallel File Compressor
 
-A simple C++ program that compresses and uncompresses files into `.pfc` archive files. The program uses run-length encoding (RLE) for lossless compression. We accelerate file compression by splitting files into pieces and performing RLE on each piece independently on separate GPU or CPU threads (dependening on the selected device). This yields a 95% speedup in 4-threaded GPU compression over 1-threaded compression and a 250% speedup in 4-threaded CPU compression over 1-threaded compression on a sample set of 10GB files (GPU metrics are computed from results on RTX 4080 Laptop).
+A simple C++ program that compresses and uncompresses files into `.pfc` archive files. This program uses run-length encoding (RLE) for lossless compression. We accelerate file compression by splitting files into pieces and performing RLE on each piece independently on separate GPU or CPU threads (dependening on the selected device). This yields a 95% speedup in 4-threaded GPU compression over 1-threaded compression and a 250% speedup in 4-threaded CPU compression over 1-threaded compression on a sample set of 10GB files (GPU metrics are computed from results on RTX 4080 Laptop).
 
 ## Build
 
